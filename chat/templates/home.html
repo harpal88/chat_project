@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Dashboard</title>
+</head>
+<body>
+    <h1>Welcome to the Dashboard</h1>
+    {% if user.is_authenticated %}
+        <p>Hello, {{ user.username }}!</p>
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit">Logout</button>
+        </form>
+
+        <!-- Chat Section -->
+        <div id="chat-section">
+            <h2>Chat</h2>
+            <!-- Chat Messages -->
+            <div id="chat-messages" style="border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto;">
+                <ul id="messages">
+                    {% for message in messages %}
+                        <li><strong>{{ message.user.username }}:</strong> {{ message.text }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Chat Input -->
+            <ul id="messages">
+                {% for message in messages %}
+                    <li><strong>{{ message.user.username }}:</strong> {{ message.content }}</li>
+                {% endfor %}
+            </ul>
+            <form id="chat-form">
+                <input id="message-input" type="text" placeholder="Enter message">
+                <button type="submit">Send</button>
+            </form>
+
+        <!-- Include JavaScript for WebSocket handling -->
+        <script>
+            const roomName = 'example-room';
+const chatSocket = new WebSocket(
+    `ws://${window.location.host}/ws/chat/${roomName}/`
+);
+
+chatSocket.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+    console.log('Message received:', data.message);
+};
+
+chatSocket.onclose = function(e) {
+    console.error('Chat socket closed unexpectedly');
+};
+
+document.getElementById('chat-form').onsubmit = function(e) {
+    e.preventDefault();
+    const inputElement = document.getElementById('chat-input');
+    const message = inputElement.value;
+    chatSocket.send(JSON.stringify({ message }));
+    inputElement.value = '';
+};
+
+        </script>
+    {% else %}
+        <a href="{% url 'login' %}">Login</a> | <a href="{% url 'register' %}">Register</a>
+    {% endif %}
+</body>
+</html>
