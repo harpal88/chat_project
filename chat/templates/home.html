@@ -37,10 +37,11 @@
 
         <!-- Include JavaScript for WebSocket handling -->
         <script>
-            const roomName = 'example-room';
+            const roomName = "{{ room_name }}";  // Rendered dynamically from the backend
 const chatSocket = new WebSocket(
     `ws://${window.location.host}/ws/chat/${roomName}/`
 );
+
 
 chatSocket.onmessage = function(e) {
     const data = JSON.parse(e.data);

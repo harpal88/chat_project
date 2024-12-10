@@ -3,19 +3,20 @@ from . import views
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
-from .views import UploadCommentView, login_success, logout_success, CommentListView
+from .views import UploadCommentView, logout_success, CommentListView
+
+
 urlpatterns = [
-    path('chat/', views.home, name='home'),
 
     # General Views
     path('', views.home, name='dashboard'),
+    
     path('register/', views.register, name='register'),
     path('profile/', views.profile, name='profile'),
-
+    
     # Authentication
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(template_name='logout.html'), name='logout'),
-    path('login_success/', login_success, name='login_success'),
     path('logout_success/', logout_success, name='logout_success'),
 
     # Password Management

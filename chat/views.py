@@ -3,6 +3,9 @@ from django.shortcuts import render
 def home(request):
     return render(request, 'chat.html')
 
+def home(request, room_name="default-room"):
+    return render(request, 'chat.html', {'room_name': room_name})
+
 import os
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
@@ -50,11 +53,6 @@ def register(request):
 
 
 # ----------- Authentication-Related Actions -----------
-@login_required
-def login_success(request):
-    """Redirect to the dashboard after login."""
-    return redirect('dashboard')  # Redirect to the dashboard
-
 
 def logout_success(request):
     """Log out the user."""
@@ -110,12 +108,12 @@ from .models import Message
 def dashboard(request):
     messages = Message.objects.all()
     return render(request, 'dashboard.html', {'user': request.user, 'messages': messages})
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect
 
-@login_required
-def chat_view(request):
-    if not request.user.is_authenticated:
-        return redirect('login')
-    return render(request, 'home.html')
- 
+from django.shortcuts import render
+from chat.models import Group,Message
+
+def group_list(request):
+    groups = Group.objects.all()
+    return render(request, 'group_list.html', {'groups': groups})
+
+
