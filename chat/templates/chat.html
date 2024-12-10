@@ -1,64 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Dashboard</title>
+    <!-- Bootstrap 3 CSS -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* Prevent page scrolling */
+        }
+
+        .chat-page {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .header, .footer {
+            background-color: #f5f5f5;
+            padding: 10px;
+            text-align: center;
+            flex-shrink: 0; /* Prevent shrinking */
+            border: 1px solid #ddd;
+        }
+
+        .chat-container {
+            flex-grow: 1; /* Allow chat container to expand */
+            overflow-y: auto; /* Enable scrolling for chat messages only */
+            padding: 10px;
+            background-color: #ffffff;
+            border-top: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .chat-message {
+            margin-bottom: 10px;
+            border-radius: 5px;
+            padding: 10px;
+        }
+
+        .chat-message-right {
+            background-color: #d4edda; /* Light green for the current user's messages */
+            text-align: right;
+        }
+
+        .chat-message-left {
+            background-color: #f8d7da; /* Light red for other users' messages */
+            text-align: left;
+        }
+
+        .chat-time {
+            font-size: 0.8em;
+            color: #555;
+            display: block;
+            margin-top: 5px;
+        }
+
+        .img-thumbnail {
+            margin-top: 10px;
+        }
+
+        .chat-form {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background-color: #f5f5f5;
+        }
+
+        .chat-input {
+            flex-grow: 1;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to the Dashboard</h1>
-    {% if user.is_authenticated %}
-        <p>Hello, {{ user.username }}!</p>
+<div class="chat-page">
+    <div class="header">
+        {% if user.is_authenticated %}
+        <h1>Hello, <strong>{{ user.username }}</strong>!</h1>
         <form method="post" action="{% url 'logout' %}">
             {% csrf_token %}
-            <button type="submit">Logout</button>
+            <button type="submit" class="btn btn-danger btn-sm">Logout</button>
         </form>
+        {% endif %}
+    </div>
 
-        <!-- Chat Section -->
-        <div id="chat-section">
-            <h2>Chat Roomaaa</h2>
-            <div id="chat-messages" style="border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto;">
-                <ul id="messages"></ul>
-            </div>
-            <form id="chat-form">
-                <input type="text" id="chat-input" name="message" placeholder="Type a message..." required>
-                <button type="submit">Send</button>
-            </form>
-        </div>
+    <div class="chat-container" id="chat-messages">
+        <ul id="messages" class="list-unstyled"></ul>
+    </div>
 
-        <!-- WebSocket JavaScript -->
-        <script>
-            const roomName = 'example-room';  // Adjust dynamically as needed
-            const chatSocket = new WebSocket(
-                `ws://${window.location.host}/ws/chat/${roomName}/`
-            );
+    <div class="footer">
+        {% if user.is_authenticated %}
+        <form id="chat-form" class="form-inline" enctype="multipart/form-data">
+            <input type="text" id="chat-input" name="message" class="form-control chat-input" placeholder="Type a message...">
+            <input type="file" id="file-input" name="file" class="form-control">
+            <button type="submit" class="btn btn-primary">Send</button>
+        </form>
+        {% else %}
+        <p class="text-center">
+            <a href="{% url 'login' %}" class="btn btn-primary">Login</a> or
+            <a href="{% url 'register' %}" class="btn btn-secondary">Register</a>.
+        </p>
+        {% endif %}
+    </div>
+</div>
 
-            // When a message is received
-            chatSocket.onmessage = function(e) {
-                const data = JSON.parse(e.data);
-                const messages = document.getElementById('messages');
-                const newMessage = document.createElement('li');
-                newMessage.textContent = `${data.message}`;
-                messages.appendChild(newMessage);
-                messages.scrollTop = messages.scrollHeight; // Auto-scroll to the bottom
-            };
+<!-- Bootstrap 3 JS -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
 
-            // When the WebSocket connection is closed
-            chatSocket.onclose = function(e) {
-                console.error('Chat socket closed unexpectedly');
-            };
+<script>
+    const username = "{{ user.username }}"; // Current user's username
+    const chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/example-room/`);
 
-            // Handle message sending
-            document.getElementById('chat-form').onsubmit = function(e) {
-                e.preventDefault();
-                const inputElement = document.getElementById('chat-input');
-                const message = inputElement.value;
-                if (message.trim() !== '') {
-                    chatSocket.send(JSON.stringify({ message }));
-                    inputElement.value = ''; // Clear input
+    chatSocket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        const messages = document.getElementById('messages');
+
+        if (data.type === 'date') {
+            const dateItem = document.createElement('li');
+            dateItem.classList.add('chat-date');
+            dateItem.textContent = `--- ${data.date} ---`;
+            messages.appendChild(dateItem);
+        }
+
+        if (data.type === 'message') {
+            const newMessage = document.createElement('li');
+            const messageContent = document.createElement('div');
+            const messageTime = document.createElement('small');
+
+            if (data.username === username) {
+                newMessage.classList.add('text-right'); // Align to right
+                messageContent.classList.add('chat-message', 'chat-message-right');
+                messageContent.textContent = data.message;
+            } else {
+                newMessage.classList.add('text-left'); // Align to left
+                messageContent.classList.add('chat-message', 'chat-message-left');
+                messageContent.textContent = `${data.username}: ${data.message}`;
+            }
+
+            messageTime.textContent = ` ${data.time}`;
+            messageTime.classList.add('chat-time');
+            messageContent.appendChild(messageTime);
+
+            if (data.file_url) {
+                const fileContainer = document.createElement('div');
+                const fileLink = document.createElement('a');
+                fileLink.href = data.file_url;
+                fileLink.target = "_blank";
+
+                if (/\.(jpg|jpeg|png|gif|webp)$/i.test(data.file_url)) {
+                    const thumbnail = document.createElement('img');
+                    thumbnail.src = data.file_url;
+                    thumbnail.alt = "File thumbnail";
+                    thumbnail.classList.add('img-thumbnail');
+                    fileLink.appendChild(thumbnail);
+                } else {
+                    fileLink.textContent = "Download File";
                 }
-            };
-        </script>
-    {% else %}
-        <p>You are not logged in. <a href="{% url 'login' %}">Login</a> or <a href="{% url 'register' %}">Register</a>.</p>
-    {% endif %}
+
+                fileContainer.appendChild(fileLink);
+                messageContent.appendChild(fileContainer);
+            }
+
+            newMessage.appendChild(messageContent);
+            messages.appendChild(newMessage);
+            messages.scrollTop = messages.scrollHeight; // Auto-scroll to the bottom
+        }
+    };
+
+    document.getElementById('chat-form').onsubmit = function (e) {
+        e.preventDefault();
+
+        const inputElement = document.getElementById('chat-input');
+        const fileElement = document.getElementById('file-input');
+        const message = inputElement.value.trim();
+        const file = fileElement.files[0];
+
+        if (!message && !file) {
+            alert('Please enter a message or select a file to send.');
+            return;
+        }
+
+        let fileUrl = null;
+        if (file) {
+            fileUrl = `/media/chat_files/${file.name}`;
+        }
+
+        chatSocket.send(JSON.stringify({
+            message: message || '',
+            file: fileUrl,
+        }));
+
+        inputElement.value = '';
+        fileElement.value = '';
+    };
+</script>
 </body>
 </html>
