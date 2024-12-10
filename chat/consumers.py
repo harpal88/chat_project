@@ -1,5 +1,8 @@
 import json
+from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+
+from chat.models import ChatMessage  # Import this to wrap database calls
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -13,6 +16,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
         await self.accept()
 
+        # Fetch and send older messages asynchronously
+        messages = await self.get_last_50_messages()
+        for message in messages:
+            await self.send(text_data=json.dumps({
+                'message': f"[{message['timestamp']}] {message['user__username']}: {message['message']}"
+            }))
+
     async def disconnect(self, close_code):
         # Leave room group
         await self.channel_layer.group_discard(
@@ -24,12 +34,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
         message = data['message']
 
+        # Save the message asynchronously
+        await self.save_message(self.room_name, self.scope["user"], message)
+
         # Send message to room group
         await self.channel_layer.group_send(
             self.room_group_name,
             {
                 'type': 'chat_message',
-                'message': message
+                'message': f"[{self.scope['user'].username}] {message}"
             }
         )
 
@@ -40,3 +53,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'message': message
         }))
+
+    # Helper function to fetch messages asynchronously
+    @database_sync_to_async
+    def get_last_50_messages(self):
+        return list(
+            ChatMessage.objects.filter(room_name=self.room_name)
+            .select_related('user')  # Optimize query with select_related
+            .order_by('-timestamp')[:50]
+            .values('user__username', 'message', 'timestamp')  # Only fetch required fields
+        )
+
+    # Helper function to save a message asynchronously
+    @database_sync_to_async
+    def save_message(self, room_name, user, message):
+        ChatMessage.objects.create(room_name=room_name, user=user, message=message)
