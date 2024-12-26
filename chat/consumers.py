@@ -156,3 +156,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         base, ext = os.path.splitext(file_name)
         return f"{slugify(base)}-{uuid4().hex[:8]}{ext}"
+class LogoutConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        if self.scope["user"].is_authenticated:
+            self.group_name = f"user_{self.scope['user'].id}"
+            await self.channel_layer.group_add(self.group_name, self.channel_name)
+            await self.accept()
+        else:
+            await self.close()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, "group_name"):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def force_logout(self, event):
+        # Close the WebSocket connection and redirect
+        await self.send(text_data=json.dumps({"type": "force_logout"}))
+        await self.close()

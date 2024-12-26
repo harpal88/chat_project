@@ -17,6 +17,10 @@ from rest_framework import status
 
 from .models import Comment, Message, Group
 from .serializers import CommentSerializer
+from django.dispatch import receiver
+from django.contrib.auth.signals import user_logged_out
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 # ----------- General Views -----------
 def home(request):
@@ -82,3 +86,12 @@ class FileUploadView(View):
             ContentFile(file.read())
         )
         return JsonResponse({'file_url': f'{settings.MEDIA_URL}{file_path}'}, status=200)
+    
+@receiver(user_logged_out)
+def notify_logout(sender, request, user, **kwargs):
+    if user:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"user_{user.id}",  # WebSocket group for the user
+            {"type": "force_logout"}
+        )

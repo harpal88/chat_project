@@ -331,6 +331,20 @@
         alert('WebSocket connection failed. Please refresh the page.');
     };
 </script>
+<script>const logoutSocket = new WebSocket(`ws://${window.location.host}/ws/logout/`);
 
+    logoutSocket.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+    
+        if (data.type === "force_logout") {
+            alert("You have been logged out from another tab.");
+            window.location.href = "/login/"; // Redirect to the login page
+        }
+    };
+    
+    logoutSocket.onclose = function () {
+        console.warn("Logout WebSocket closed unexpectedly.");
+    };
+    </script>
 </body>
 </html>
